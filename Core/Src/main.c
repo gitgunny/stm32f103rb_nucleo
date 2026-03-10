@@ -25,6 +25,7 @@
 #include <string.h>
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,6 +50,8 @@ osThreadId defaultTaskHandle;
 /* USER CODE BEGIN PV */
 TaskHandle_t taskAHandle;
 TaskHandle_t taskBHandle;
+
+SemaphoreHandle_t xMutex;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -102,6 +105,10 @@ int main(void) {
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
+  xMutex = xSemaphoreCreateMutex();
+  if (xMutex == NULL) {
+    Error_Handler();
+  }
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
@@ -260,15 +267,21 @@ static void MX_GPIO_Init(void) {
 /* USER CODE BEGIN 4 */
 void TaskA(void* pvParameters) {
   for (;;) {
-    HAL_UART_Transmit(&huart2, (uint8_t*)"TASK A\r\n", strlen("TASK A\r\n"), HAL_MAX_DELAY);
+    if (xSemaphoreTake(xMutex, portMAX_DELAY) != pdFAIL) {
+      HAL_UART_Transmit(&huart2, (uint8_t*)"TASK A\r\n", strlen("TASK A\r\n"), HAL_MAX_DELAY);
+      xSemaphoreGive(xMutex);
+    }
     vTaskDelay(pdMS_TO_TICKS(1000));
-  }
+}
   vTaskDelete(NULL);
 }
 
 void TaskB(void* pvParameters) {
   for (;;) {
-    HAL_UART_Transmit(&huart2, (uint8_t*)"TASK B\r\n", strlen("TASK B\r\n"), HAL_MAX_DELAY);
+    if (xSemaphoreTake(xMutex, portMAX_DELAY) != pdFAIL) {
+      HAL_UART_Transmit(&huart2, (uint8_t*)"TASK B\r\n", strlen("TASK B\r\n"), HAL_MAX_DELAY);
+      xSemaphoreGive(xMutex);
+    }
     vTaskDelay(pdMS_TO_TICKS(2000));
   }
   vTaskDelete(NULL);
