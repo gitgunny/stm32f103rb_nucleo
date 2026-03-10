@@ -22,6 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
 #include <string.h>
 #include "FreeRTOS.h"
 #include "task.h"
@@ -50,7 +51,7 @@ osThreadId defaultTaskHandle;
 /* USER CODE BEGIN PV */
 TaskHandle_t mainTaskHandle;
 TaskHandle_t interruptTaskHandle;
-
+QueueHandle_t xQueue;
 SemaphoreHandle_t xMutex;
 SemaphoreHandle_t xBinarySemaphore;
 /* USER CODE END PV */
@@ -110,15 +111,14 @@ int main(void) {
   if (xMutex == NULL) {
     Error_Handler();
   }
-
-  xBinarySemaphore = xSemaphoreCreateBinary();
-  if (xBinarySemaphore == NULL) {
-    Error_Handler();
-  }
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
+  xBinarySemaphore = xSemaphoreCreateBinary();
+  if (xBinarySemaphore == NULL) {
+    Error_Handler();
+  }
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* USER CODE BEGIN RTOS_TIMERS */
@@ -127,6 +127,10 @@ int main(void) {
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
+  xQueue = xQueueCreate(10, sizeof(uint8_t));
+  if (xQueue == NULL) {
+    Error_Handler();
+  }
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -272,33 +276,45 @@ static void MX_GPIO_Init(void) {
 void StartMainTask(void *pvParameters) {
   for (;;) {
     if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdPASS) {
-      HAL_UART_Transmit(&huart2, (uint8_t *)"Main task running..\r\n", strlen("Main task running..\r\n"), HAL_MAX_DELAY);
+      char buffer[64];
+      snprintf(buffer, sizeof(buffer), "Main task running..\r\n");
+      HAL_UART_Transmit(&huart2, (uint8_t *)buffer, strlen(buffer), HAL_MAX_DELAY);
       xSemaphoreGive(xMutex);
     }
     vTaskDelay(pdMS_TO_TICKS(1000));
+    // taskYIELD();
   }
   vTaskDelete(NULL);
 }
 
 void StartInterruptTask(void *pvParameters) {
+  uint8_t count = 0;
   for (;;) {
-    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdPASS) {
-      HAL_UART_Transmit(&huart2, (uint8_t *)"Interrupt task running..\r\n", strlen("Interrupt task running..\r\n"), HAL_MAX_DELAY);
-      xSemaphoreGive(xMutex);
+    if (xQueueReceive(xQueue, &count, portMAX_DELAY) == pdPASS) {
+      if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdPASS) {
+        char buffer[64];
+        snprintf(buffer, sizeof(buffer), "Interrupt task running..(cnt: %d)\r\n", count);
+        HAL_UART_Transmit(&huart2, (uint8_t *)buffer, strlen(buffer), HAL_MAX_DELAY);
+        xSemaphoreGive(xMutex);
+      }
     }
     if (xSemaphoreTake(xBinarySemaphore, portMAX_DELAY) == pdPASS) {
       HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     }
-    taskYIELD();
+    // taskYIELD();
   }
   vTaskDelete(NULL);
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  static uint8_t count = 0;
+  BaseType_t xHigherPriorityTaskWoken1 = pdFALSE;
+  BaseType_t xHigherPriorityTaskWoken2 = pdFALSE;
   if (GPIO_Pin == B1_Pin) {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xSemaphoreGiveFromISR(xBinarySemaphore, &xHigherPriorityTaskWoken);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    count++;
+    xQueueSendFromISR(xQueue, &count, &xHigherPriorityTaskWoken1);
+    xSemaphoreGiveFromISR(xBinarySemaphore, &xHigherPriorityTaskWoken2);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken1 || xHigherPriorityTaskWoken2);
   }
 }
 /* USER CODE END 4 */
