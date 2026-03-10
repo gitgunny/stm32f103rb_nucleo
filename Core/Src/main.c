@@ -271,7 +271,7 @@ void TaskA(void* pvParameters) {
       HAL_UART_Transmit(&huart2, (uint8_t*)"TASK A\r\n", strlen("TASK A\r\n"), HAL_MAX_DELAY);
       xSemaphoreGive(xMutex);
     }
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelay(pdMS_TO_TICKS(500));
 }
   vTaskDelete(NULL);
 }
@@ -282,7 +282,7 @@ void TaskB(void* pvParameters) {
       HAL_UART_Transmit(&huart2, (uint8_t*)"TASK B\r\n", strlen("TASK B\r\n"), HAL_MAX_DELAY);
       xSemaphoreGive(xMutex);
     }
-    vTaskDelay(pdMS_TO_TICKS(2000));
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
   vTaskDelete(NULL);
 }
