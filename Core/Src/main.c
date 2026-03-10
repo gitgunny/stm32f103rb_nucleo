@@ -110,6 +110,11 @@ int main(void) {
   if (xMutex == NULL) {
     Error_Handler();
   }
+
+  xBinarySemaphore = xSemaphoreCreateBinary();
+  if (xBinarySemaphore == NULL) {
+    Error_Handler();
+  }
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
@@ -286,6 +291,14 @@ void TaskB(void* pvParameters) {
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
   vTaskDelete(NULL);
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  if (GPIO_Pin == B1_Pin) {
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xSemaphoreGiveFromISR(xBinarySemaphore, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+  }
 }
 /* USER CODE END 4 */
 
