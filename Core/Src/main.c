@@ -48,8 +48,8 @@ UART_HandleTypeDef huart2;
 
 osThreadId defaultTaskHandle;
 /* USER CODE BEGIN PV */
-TaskHandle_t taskAHandle;
-TaskHandle_t taskBHandle;
+TaskHandle_t mainTaskHandle;
+TaskHandle_t interruptTaskHandle;
 
 SemaphoreHandle_t xMutex;
 SemaphoreHandle_t xBinarySemaphore;
@@ -59,11 +59,11 @@ SemaphoreHandle_t xBinarySemaphore;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
-void StartDefaultTask(void const* argument);
+void StartDefaultTask(void const *argument);
 
 /* USER CODE BEGIN PFP */
-void TaskA(void* pvParameters);
-void TaskB(void* pvParameters);
+void StartMainTask(void *pvParameters);
+void StartInterruptTask(void *pvParameters);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -136,14 +136,12 @@ int main(void) {
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
-  if (xTaskCreate(TaskA, "TaskA", 128, NULL, 5, &taskAHandle) != pdPASS) {
+  if (xTaskCreate(StartMainTask, "MainTask", 128, NULL, 5, &mainTaskHandle) != pdPASS) {
     Error_Handler();
   }
-
-  if (xTaskCreate(TaskB, "TaskB", 128, NULL, 5, &taskBHandle) != pdPASS) {
+  if (xTaskCreate(StartInterruptTask, "InterruptTask", 128, NULL, 5, &interruptTaskHandle) != pdPASS) {
     Error_Handler();
   }
-
   // vTaskStartScheduler();
   /* USER CODE END RTOS_THREADS */
 
@@ -271,30 +269,27 @@ static void MX_GPIO_Init(void) {
 }
 
 /* USER CODE BEGIN 4 */
-void TaskA(void* pvParameters) {
+void StartMainTask(void *pvParameters) {
   for (;;) {
     if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdPASS) {
-      HAL_UART_Transmit(&huart2, (uint8_t*)"TASK A\r\n", strlen("TASK A\r\n"), HAL_MAX_DELAY);
+      HAL_UART_Transmit(&huart2, (uint8_t *)"Main task running..\r\n", strlen("Main task running..\r\n"), HAL_MAX_DELAY);
       xSemaphoreGive(xMutex);
     }
-
-    if (xSemaphoreTake(xBinarySemaphore, portMAX_DELAY) == pdPASS) {
-      HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
   vTaskDelete(NULL);
 }
 
-void TaskB(void* pvParameters) {
+void StartInterruptTask(void *pvParameters) {
   for (;;) {
     if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdPASS) {
-      HAL_UART_Transmit(&huart2, (uint8_t*)"TASK B\r\n", strlen("TASK B\r\n"), HAL_MAX_DELAY);
+      HAL_UART_Transmit(&huart2, (uint8_t *)"Interrupt task running..\r\n", strlen("Interrupt task running..\r\n"), HAL_MAX_DELAY);
       xSemaphoreGive(xMutex);
     }
-
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    if (xSemaphoreTake(xBinarySemaphore, portMAX_DELAY) == pdPASS) {
+      HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    }
+    taskYIELD();
   }
   vTaskDelete(NULL);
 }
@@ -315,7 +310,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   * @retval None
   */
   /* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void const* argument) {
+void StartDefaultTask(void const *argument) {
   /* USER CODE BEGIN 5 */
   vTaskDelete(NULL);
   /* Infinite loop */
@@ -333,7 +328,7 @@ void StartDefaultTask(void const* argument) {
   * @param  htim : TIM handle
   * @retval None
   */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim) {
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
@@ -365,7 +360,7 @@ void Error_Handler(void) {
   * @param  line: assert_param error line source number
   * @retval None
   */
-void assert_failed(uint8_t* file, uint32_t line) {
+void assert_failed(uint8_t *file, uint32_t line) {
   /* USER CODE BEGIN 6 */
   /* User can add his own implementation to report the file name and line number,
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
