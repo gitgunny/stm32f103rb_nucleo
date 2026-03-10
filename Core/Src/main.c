@@ -52,6 +52,7 @@ TaskHandle_t taskAHandle;
 TaskHandle_t taskBHandle;
 
 SemaphoreHandle_t xMutex;
+SemaphoreHandle_t xBinarySemaphore;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
