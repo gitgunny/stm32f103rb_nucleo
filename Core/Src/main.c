@@ -273,21 +273,27 @@ static void MX_GPIO_Init(void) {
 /* USER CODE BEGIN 4 */
 void TaskA(void* pvParameters) {
   for (;;) {
-    if (xSemaphoreTake(xMutex, portMAX_DELAY) != pdFAIL) {
+    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdPASS) {
       HAL_UART_Transmit(&huart2, (uint8_t*)"TASK A\r\n", strlen("TASK A\r\n"), HAL_MAX_DELAY);
       xSemaphoreGive(xMutex);
     }
+
+    if (xSemaphoreTake(xBinarySemaphore, portMAX_DELAY) == pdPASS) {
+      HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    }
+
     vTaskDelay(pdMS_TO_TICKS(500));
-}
+  }
   vTaskDelete(NULL);
 }
 
 void TaskB(void* pvParameters) {
   for (;;) {
-    if (xSemaphoreTake(xMutex, portMAX_DELAY) != pdFAIL) {
+    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdPASS) {
       HAL_UART_Transmit(&huart2, (uint8_t*)"TASK B\r\n", strlen("TASK B\r\n"), HAL_MAX_DELAY);
       xSemaphoreGive(xMutex);
     }
+
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
   vTaskDelete(NULL);
