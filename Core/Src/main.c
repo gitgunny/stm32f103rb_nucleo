@@ -52,6 +52,7 @@ TaskHandle_t taskAHandle;
 TaskHandle_t taskBHandle;
 
 SemaphoreHandle_t xMutex;
+SemaphoreHandle_t xBinarySemaphore;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -107,6 +108,11 @@ int main(void) {
   /* add mutexes, ... */
   xMutex = xSemaphoreCreateMutex();
   if (xMutex == NULL) {
+    Error_Handler();
+  }
+
+  xBinarySemaphore = xSemaphoreCreateBinary();
+  if (xBinarySemaphore == NULL) {
     Error_Handler();
   }
   /* USER CODE END RTOS_MUTEX */
@@ -267,24 +273,38 @@ static void MX_GPIO_Init(void) {
 /* USER CODE BEGIN 4 */
 void TaskA(void* pvParameters) {
   for (;;) {
-    if (xSemaphoreTake(xMutex, portMAX_DELAY) != pdFAIL) {
+    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdPASS) {
       HAL_UART_Transmit(&huart2, (uint8_t*)"TASK A\r\n", strlen("TASK A\r\n"), HAL_MAX_DELAY);
       xSemaphoreGive(xMutex);
     }
+
+    if (xSemaphoreTake(xBinarySemaphore, portMAX_DELAY) == pdPASS) {
+      HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    }
+
     vTaskDelay(pdMS_TO_TICKS(500));
-}
+  }
   vTaskDelete(NULL);
 }
 
 void TaskB(void* pvParameters) {
   for (;;) {
-    if (xSemaphoreTake(xMutex, portMAX_DELAY) != pdFAIL) {
+    if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdPASS) {
       HAL_UART_Transmit(&huart2, (uint8_t*)"TASK B\r\n", strlen("TASK B\r\n"), HAL_MAX_DELAY);
       xSemaphoreGive(xMutex);
     }
+
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
   vTaskDelete(NULL);
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  if (GPIO_Pin == B1_Pin) {
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xSemaphoreGiveFromISR(xBinarySemaphore, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+  }
 }
 /* USER CODE END 4 */
 
