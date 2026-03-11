@@ -50,7 +50,8 @@ UART_HandleTypeDef huart2;
 osThreadId defaultTaskHandle;
 /* USER CODE BEGIN PV */
 TaskHandle_t mainTaskHandle;
-TaskHandle_t interruptTaskHandle;
+TaskHandle_t queueInterruptTaskHandle;
+TaskHandle_t semaphoreInterruptTaskHandle;
 QueueHandle_t xQueue;
 SemaphoreHandle_t xMutex;
 SemaphoreHandle_t xBinarySemaphore;
@@ -64,7 +65,8 @@ void StartDefaultTask(void const *argument);
 
 /* USER CODE BEGIN PFP */
 void StartMainTask(void *pvParameters);
-void StartInterruptTask(void *pvParameters);
+void StartQueueInterruptTask(void *pvParameters);
+void StartSemaphoreIntterruptTask(void *pvParameters);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -135,7 +137,8 @@ int main(void) {
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   configASSERT(xTaskCreate(StartMainTask, "MainTask", 128, NULL, 5, &mainTaskHandle));
-  configASSERT(xTaskCreate(StartInterruptTask, "InterruptTask", 128, NULL, 5, &interruptTaskHandle));
+  configASSERT(xTaskCreate(StartQueueInterruptTask, "QueueInterruptTask", 128, NULL, 5, &queueInterruptTaskHandle));
+  configASSERT(xTaskCreate(StartSemaphoreIntterruptTask, "SemaphoreInterruptTask", 128, NULL, 5, &semaphoreInterruptTaskHandle));
   // vTaskStartScheduler();
   /* USER CODE END RTOS_THREADS */
 
@@ -277,7 +280,7 @@ void StartMainTask(void *pvParameters) {
   vTaskDelete(NULL);
 }
 
-void StartInterruptTask(void *pvParameters) {
+void StartQueueInterruptTask(void *pvParameters) {
   uint8_t count = 0;
   for (;;) {
     if (xQueueReceive(xQueue, &count, portMAX_DELAY) == pdPASS) {
@@ -288,6 +291,13 @@ void StartInterruptTask(void *pvParameters) {
         xSemaphoreGive(xMutex);
       }
     }
+    // taskYIELD();
+  }
+  vTaskDelete(NULL);
+}
+
+void StartSemaphoreIntterruptTask(void *pvParameters) {
+  for (;;) {
     if (xSemaphoreTake(xBinarySemaphore, portMAX_DELAY) == pdPASS) {
       HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     }
