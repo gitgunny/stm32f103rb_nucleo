@@ -267,6 +267,7 @@ static void MX_GPIO_Init(void) {
 
 /* USER CODE BEGIN 4 */
 void StartMainTask(void *pvParameters) {
+  TickType_t xPreviousWakeTime = xTaskGetTickCount();
   for (;;) {
     if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdPASS) {
       char buffer[64];
@@ -274,7 +275,7 @@ void StartMainTask(void *pvParameters) {
       HAL_UART_Transmit(&huart2, (uint8_t *)buffer, strlen(buffer), HAL_MAX_DELAY);
       xSemaphoreGive(xMutex);
     }
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskDelayUntil(&xPreviousWakeTime, pdMS_TO_TICKS(1000));
     // taskYIELD();
   }
   vTaskDelete(NULL);
