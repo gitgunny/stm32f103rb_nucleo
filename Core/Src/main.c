@@ -108,17 +108,13 @@ int main(void) {
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   xMutex = xSemaphoreCreateMutex();
-  if (xMutex == NULL) {
-    Error_Handler();
-  }
+  configASSERT(xMutex);
   /* USER CODE END RTOS_MUTEX */
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   xBinarySemaphore = xSemaphoreCreateBinary();
-  if (xBinarySemaphore == NULL) {
-    Error_Handler();
-  }
+  configASSERT(xBinarySemaphore);
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* USER CODE BEGIN RTOS_TIMERS */
@@ -128,9 +124,7 @@ int main(void) {
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   xQueue = xQueueCreate(10, sizeof(uint8_t));
-  if (xQueue == NULL) {
-    Error_Handler();
-  }
+  configASSERT(xQueue);
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -140,12 +134,8 @@ int main(void) {
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
-  if (xTaskCreate(StartMainTask, "MainTask", 128, NULL, 5, &mainTaskHandle) != pdPASS) {
-    Error_Handler();
-  }
-  if (xTaskCreate(StartInterruptTask, "InterruptTask", 128, NULL, 5, &interruptTaskHandle) != pdPASS) {
-    Error_Handler();
-  }
+  configASSERT(xTaskCreate(StartMainTask, "MainTask", 128, NULL, 5, &mainTaskHandle));
+  configASSERT(xTaskCreate(StartInterruptTask, "InterruptTask", 128, NULL, 5, &interruptTaskHandle));
   // vTaskStartScheduler();
   /* USER CODE END RTOS_THREADS */
 
