@@ -26,6 +26,7 @@
 #include <string.h>
 #include "FreeRTOS.h"
 #include "task.h"
+#include "queue.h"
 #include "semphr.h"
 /* USER CODE END Includes */
 
@@ -52,6 +53,7 @@ osThreadId defaultTaskHandle;
 TaskHandle_t mainTaskHandle;
 TaskHandle_t queueInterruptTaskHandle;
 TaskHandle_t semaphoreInterruptTaskHandle;
+TaskHandle_t notifyIntterruptTaskHandle;
 QueueHandle_t xQueue;
 SemaphoreHandle_t xMutex;
 SemaphoreHandle_t xBinarySemaphore;
@@ -67,6 +69,7 @@ void StartDefaultTask(void const * argument);
 void StartMainTask(void *pvParameters);
 void StartQueueInterruptTask(void *pvParameters);
 void StartSemaphoreIntterruptTask(void *pvParameters);
+void StartNotifyInterruptTask(void *pvParameters);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -140,6 +143,7 @@ int main(void)
   configASSERT(xTaskCreate(StartMainTask, "MainTask", 128, NULL, 5, &mainTaskHandle));
   configASSERT(xTaskCreate(StartQueueInterruptTask, "QueueInterruptTask", 128, NULL, 5, &queueInterruptTaskHandle));
   configASSERT(xTaskCreate(StartSemaphoreIntterruptTask, "SemaphoreInterruptTask", 128, NULL, 5, &semaphoreInterruptTaskHandle));
+  configASSERT(xTaskCreate(StartNotifyInterruptTask, "NotifyIntterruptTask", 128, NULL, 5, &notifyIntterruptTaskHandle));
   // vTaskStartScheduler();
   /* USER CODE END RTOS_THREADS */
 
@@ -314,15 +318,33 @@ void StartSemaphoreIntterruptTask(void *pvParameters) {
   vTaskDelete(NULL);
 }
 
+void StartNotifyInterruptTask(void *pvParameters) {
+  uint32_t count = 0;
+  for (;;) {
+    if (xTaskNotifyWait(0, 0xFFFFFFFF, &count, portMAX_DELAY) == pdPASS) {
+      if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdPASS) {
+        char buffer[64];
+        snprintf(buffer, sizeof(buffer), "Notify Interrupt task running..(cnt: %ld)\r\n", count);
+        HAL_UART_Transmit(&huart2, (uint8_t *)buffer, strlen(buffer), HAL_MAX_DELAY);
+        xSemaphoreGive(xMutex);
+      }
+    }
+    // taskYIELD();
+  }
+  vTaskDelete(NULL);
+}
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   static uint8_t count = 0;
   BaseType_t xHigherPriorityTaskWoken1 = pdFALSE;
   BaseType_t xHigherPriorityTaskWoken2 = pdFALSE;
+  BaseType_t xHigherPriorityTaskWoken3 = pdFALSE;
   if (GPIO_Pin == B1_Pin) {
     count++;
     xQueueSendFromISR(xQueue, &count, &xHigherPriorityTaskWoken1);
     xSemaphoreGiveFromISR(xBinarySemaphore, &xHigherPriorityTaskWoken2);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken1 || xHigherPriorityTaskWoken2);
+    xTaskNotifyFromISR(notifyIntterruptTaskHandle, count, eSetValueWithOverwrite, &xHigherPriorityTaskWoken3);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken1 || xHigherPriorityTaskWoken2 || xHigherPriorityTaskWoken3);
   }
 }
 /* USER CODE END 4 */
